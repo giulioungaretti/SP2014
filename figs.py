@@ -1,0 +1,23 @@
+plt.figure()
+
+plt.figure()
+plt.xlabel(' L (pixel) ')
+plt.ylabel('Peak intensity a.u.')
+plot_collection_intpr(ntrp_L, step = 50)
+plot_collection_raw(sum_along_L,'k.',step=50)
+plt.legend()
+
+plt.figure()
+plt.xlabel(' HK (pixel) ')
+plt.ylabel('Peak intensity a.u.')
+plot_collection_intpr(ntrp_hk, step = 50)
+plot_collection_raw(sum_along_hk,'k.',step=50)
+plt.legend()
+
+plt.figure()
+plt.plot(time, FWHMs_hk)
+plt.xlabel('Time (s)')
+plt.ylabel('FWHM (pixels)')
+plt.plot(time, FWHMs_L)
+plt.xlabel('Time (s)')
+plt.ylabel('FWHM (pixels)')
