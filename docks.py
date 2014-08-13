@@ -16,7 +16,7 @@ import pyqtgraph.console
 from derive4poiunt import derive2d, rolling_window
 
 # set up remote plotting
-remote = False
+remote = True
 if remote:
     screen = ':0'
     os.environ['DISPLAY'] = screen

@@ -19,7 +19,7 @@ from collections import deque
 from pyqtgraph.dockarea import *
 import pyqtgraph.console
 from derive4poiunt import derive2d, rolling_window
-
+import matplotlib
 # # set up remote plotting
 # remote = False
 # if remote:
@@ -29,8 +29,8 @@ from derive4poiunt import derive2d, rolling_window
 
 # ##########################
 # ####### parsing files ###
-# #########################
-# #
+# # #########################
+# # #
 name = '0884/time1'
 flat_field = 'flatfield2/'
 directory = './' + name + '/'
@@ -42,21 +42,21 @@ files = [directory + str(i) for i in os.listdir(directory) if 'tif' in i]
 # data_array = data_array.astype(float)  # convert to float to use nans
 # data_array[data_array == 0.] = 1
 times = np.array(map(parse_time, files))
-data_array = data_array[np.argsort(times)]
+# data_array = data_array[np.argsort(times)]
 time = np.linspace(times.min(), times.max(), len(times))
-# data_array_bk = data_array
+# # data_array_bk = data_array
 def load_a():
     '''
-    dump array to disk
+    load from  disk
     '''
     filename = 'array.p'
     infile = open(filename, 'r')
     arraty = pickle.load(infile)
     return arraty
 
-
+time = time -time[0]
 data_array_bk = load_a()
-data_array_bk_mean = np.mean(rolling_window(data_array_bk, 5), -1)
+data_array_bk_mean = np.mean(rolling_window(data_array_bk, 7), -1)
 data_array_bk_median = median_filter(data_array_bk_mean, size=(3, 3, 3))
 diff_s = derive2d(time, data_array_bk_median)
 diff = np.mean(rolling_window(diff_s, 10), -1)
@@ -67,8 +67,8 @@ sliced_arrays_k = diff[:,180:230,:] # manual slicing
 l_sum_d_sliced_arrays = sliced_arrays.sum(axis=2)
 k_sum_d_sliced_arrays = sliced_arrays_k.sum(axis=1)
 
-wz_range_min = 1.4
-wz_range_max  = 1.6
+wz_range_min = 1.42
+wz_range_max  = 1.55
 L = np.loadtxt('0884L.dat')
 K = np.loadtxt('0884K.dat')
 L = (L.mean(axis=0))
@@ -88,44 +88,48 @@ for i in select_WZ:
     if len(pks) > 1:
         peak_pos_L.append(L[pks])
         delta.append(L[pks][:-1]-L[pks][1:])
-        peak_pos_i.append([pks])
+        peak_pos_i.append(i[pks])
         peak_pos.append(pks)
     else:
         peak_pos.append(np.NaN)
 
-print ( tm.time()- timez )/60
 
 fig, ax = plt.subplots()
-for values,timev in zip(delta, time):
-    ax.scatter(x= np.ones(len(values)) *timev, y = values)
+for values,timev in zip(peak_pos_i, time):
+    values = np.array(values)
+    ax.plot(np.ones(len(values)) *timev, values)
+    # ax.plot(x= np.ones(len(values)) *timev, y = values)
 
 plt.figure()
 for d,values,timev in zip(peak_pos_L, peak_pos_i, time):
     values = np.array(values)
-    if values.min() > 0:
-        plt.scatter(x= np.ones(len(d)) *timev, y = d, c  = np.log(values), cmap=plt.cm.rainbow)
+    d = d[values > tresh]
+    plt.scatter(x= np.ones(len(d)) *timev, y =d)
 plt.colorbar()
 
 
 plt.figure()
 for d,values,timev in zip(peak_pos_L, peak_pos_i, time):
     values = np.array(values)
-    if values.min() > np.log(2.3*np.exp(9)):
-        plt.scatter(x= np.ones(len(d)) *timev, y = d, c  = np.log(values), cmap=plt.cm.cubehelix)
+
+    plt.scatter(x= np.ones(len(d)) *timev, y = d, c  = np.log(values), cmap=plt.cm.cubehelix)
 plt.colorbar()
 
 # plt.figure()
 # for d,values,timev in zip(peak_pos_L, peak_pos_i, time):
+#     values = arraty(values)
 #     plt.scatter(x= np.ones(len(d)) *timev, y = values, c=d, cmap=plt.cm.rainbow)
+
 
 sxl = []
 dxl = []
 ints = []
+fuck = []
 for d,values,timev in zip(peak_pos_L, peak_pos_i, time):
     values = np.array(values)
     center = np.where(values == values.max())[0]
-    print values.max()
-    if values.min() >5:
+    if values.max() > 9*np.exp(7):
+        print values.max()
         try:
             sx =np.abs(d[center+1] -  d[center]  )
             dx =np.abs( d[center] - d[center-1])
@@ -141,9 +145,45 @@ for d,values,timev in zip(peak_pos_L, peak_pos_i, time):
         dxl.append(np.array([np.nan]))
 
 mean = np.mean(np.array([np.concatenate(dxl),np.concatenate(sxl)]), axis=0)
-plt.figure()
-# plt.scatter(x=time, y=1/mean, c=np.concatenate(ints),marker="o",  cmap=plt.cm.cubehelix, s =100)
-plt.plot(time-time[0], (1/mean)/10, 'ko')
+std = np.std(np.array([np.concatenate(dxl),np.concatenate(sxl)]), axis=0)
+plt.errorbar(x=(time-time[0])[1:], y=(1/mean)/10, yerr=std)
 plt.xlim(0,200)
 plt.ylabel('Peak width (nm)')
 plt.xlabel('Time (s)')
+
+# fig, ax = plt.subplots()
+# ax.set_yscale('log')
+# b = np.sum(l_sum_d_sliced_arrays[200:205], axis=0)
+# b = np.sign(b) * np.log(np.abs(b))
+# ax.plot(L, b, label ='200')
+# a = np.sum(l_sum_d_sliced_arrays[220:225], axis=0)
+# a = np.sign(a) * np.log(np.abs(a))
+# ax.plot(L,a, label ='220 ')
+# c =np.sum(l_sum_d_sliced_arrays[230:235], axis=0)
+# c = np.sign(c) * np.log(np.abs(c))
+# ax.plot(L,c, label ='230 ')
+# c =np.sum(l_sum_d_sliced_arrays[240:245], axis=0)
+# c = np.sign(c) * np.log(np.abs(c))
+# ax.plot(L,c, label ='240 ')
+# c =np.sum(l_sum_d_sliced_arrays[250:255], axis=0)
+# c = np.sign(c) * np.log(np.abs(c))
+# ax.plot(L,c, label ='250')
+
+
+fig2, ax = plt.subplots()
+b = np.sum(l_sum_d_sliced_arrays[100:150], axis=0)
+ax.plot(L, b, label ='100')
+b = np.sum(l_sum_d_sliced_arrays[200:205], axis=0)
+ax.plot(L, b, label ='200')
+a = np.sum(l_sum_d_sliced_arrays[220:225], axis=0)
+ax.plot(L,a, label ='220 ')
+c =np.sum(l_sum_d_sliced_arrays[230:235], axis=0)
+ax.plot(L,c, label ='230 ')
+c =np.sum(l_sum_d_sliced_arrays[240:245], axis=0)
+ax.plot(L,c, label ='240 ')
+c =np.sum(l_sum_d_sliced_arrays[250:255], axis=0)
+ax.plot(L,c, label ='250')
+
+fig3, ax2 = plt.subplots()
+shit = ax2.imshow(np.rot90(l_sum_d_sliced_arrays), interpolation=None, cmap=plt.cm.cubehelix, )
+fig3.colorbar(shit)
